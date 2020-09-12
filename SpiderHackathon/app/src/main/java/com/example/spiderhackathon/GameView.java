@@ -24,6 +24,7 @@ public class GameView extends View {
     private Bitmap playerCar;
     private Bitmap playerCarMoving;
     private Bitmap parkSpot;
+    private Bitmap spikeBitmap;
     private Bitmap coinBitmap;
     private double canvasWidth;
     private double canvasHeight;
@@ -37,6 +38,8 @@ public class GameView extends View {
     private boolean pathFinished;
     private static boolean initialDraw = true;
     private ArrayList<Coin> coins;
+    private ArrayList<Spike> spikes;
+    private int coinsCollected;
 
     private float[] matrixValues;
 
@@ -60,6 +63,7 @@ public class GameView extends View {
         playerCarMoving = BitmapFactory.decodeResource(getResources(), R.drawable.player_rot);
         parkSpot = BitmapFactory.decodeResource(getResources(), R.drawable.parkingspot);
         coinBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.coin);
+        spikeBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.spike);
 
         drawPaint = new Paint();
         drawPaint.setColor(Color.YELLOW);
@@ -72,7 +76,12 @@ public class GameView extends View {
         coins = new ArrayList<>();
         coins.add(new Coin(400, 400));
 
+        spikes = new ArrayList<>();
+        spikes.add(new Spike(600, 400));
+
         matrixValues = new float[9];
+
+        coinsCollected = 0;
     }
 
     @Override
@@ -100,12 +109,7 @@ public class GameView extends View {
                 canvas.drawBitmap(playerCarMoving, matrix, null);
                 matrix.getValues(matrixValues);
                 //Log.d(TAG, "onDraw:\nmatrix[0]: " + matrixValues[0] + "\nmatrix[1]: " + matrixValues[1] + "\nmatrix[2]: " + matrixValues[2] + "\nmatrix[3]: " + matrixValues[3] + "\nmatrix[4]: " + matrixValues[4] + "\nmatrix[5]: " + matrixValues[5] + "\nmatrix[6]: " + matrixValues[6] + "\nmatrix[7]: " + matrixValues[7] + "\nmatrix[8]: " + matrixValues[8]);
-                if(matrixValues[2] >= coins.get(0).getLeft() && matrixValues[2] <= coins.get(0).getLeft() + coinBitmap.getWidth() && matrixValues[5] >= coins.get(0).getTop() && matrixValues[5] <= coins.get(0).getTop() + coinBitmap.getHeight()) {
-                    coins.get(0).setCollected(true);
-                }
-                if(!coins.get(0).isCollected()) {
-                    canvas.drawBitmap(coinBitmap, coins.get(0).getLeft(), coins.get(0).getTop(), null);
-                }
+                checkAndDrawSpikesCoins(canvas);
                 Log.d(TAG, "onDraw: carX: " + matrixValues[2] + " carY: " + matrixValues[5]);
                 Log.d(TAG, "onDraw: coinX: " + coins.get(0).getLeft());
                 currentStepNo++;
@@ -127,6 +131,9 @@ public class GameView extends View {
             canvas.drawBitmap(playerCar, carStartPosLeft, carStartPosTop, null);
             for(Coin c : coins) {
                 canvas.drawBitmap(coinBitmap, c.getLeft(), c.getTop(), null);
+            }
+            for(Spike s : spikes) {
+                canvas.drawBitmap(spikeBitmap, s.getLeft(), s.getTop(), null);
             }
         }
         //Log.d(TAG, "onDraw: initialDraw: " + initialDraw);
@@ -180,6 +187,43 @@ public class GameView extends View {
 
         public void setCollected(boolean collected) {
             this.collected = collected;
+        }
+    }
+
+    public class Spike {
+        private float left;
+        private float top;
+
+        public Spike(float left, float top) {
+            this.left = left;
+            this.top = top;
+        }
+
+        public float getLeft() {
+            return left;
+        }
+
+        public float getTop() {
+            return top;
+        }
+    }
+
+    public void checkAndDrawSpikesCoins(Canvas canvas) {
+        for (Spike s : spikes) {
+            if (matrixValues[2] >= s.getLeft() && matrixValues[2] <= s.getLeft() + spikeBitmap.getWidth() && matrixValues[5] >= s.getTop() && matrixValues[5] <= s.getTop() + spikeBitmap.getHeight()) {
+                currentStepNo = 120;
+            }
+            canvas.drawBitmap(spikeBitmap, s.getLeft(), s.getTop(), null);
+        }
+
+        for(Coin c : coins) {
+            if (matrixValues[2] >= c.getLeft() && matrixValues[2] <= c.getLeft() + coinBitmap.getWidth() && matrixValues[5] >= c.getTop() && matrixValues[5] <= c.getTop() + coinBitmap.getHeight()) {
+                c.setCollected(true);
+                coinsCollected++;
+            }
+            if (!c.isCollected()) {
+                canvas.drawBitmap(coinBitmap, c.getLeft(), c.getTop(), null);
+            }
         }
     }
 
