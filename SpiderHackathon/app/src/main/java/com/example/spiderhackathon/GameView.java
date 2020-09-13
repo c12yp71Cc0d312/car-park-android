@@ -37,6 +37,7 @@ public class GameView extends View {
     private ArrayList<Spike> spikes;
     private int coinsCollected;
     private float pathStartX, pathStartY;
+    private float pathEndX, pathEndY;
 
     private float[] matrixValues;
     private float[] carPosition;
@@ -235,7 +236,10 @@ public class GameView extends View {
                     //Log.d(TAG, "onTouchEvent: actionmove");
                     break;
                 case MotionEvent.ACTION_UP:
-                    checkPathStart();
+                    pathEndX = pointX;
+                    pathEndY = pointY;
+                    Log.d(TAG, "onTouchEvent: endx: " + pathEndX + " endy: " + pathEndY);
+                    checkPathStartAndEnd();
                     //Log.d(TAG, "onTouchEvent: actionup");
                     break;
                 default:
@@ -247,11 +251,11 @@ public class GameView extends View {
         return false;
     }
 
-    public void checkPathStart() {
-        if(!(pathStartX >= carPosition[0] - playerCarMoving.getWidth() && pathStartX <= carPosition[0] + playerCarMoving.getWidth() && pathStartY >= carPosition[1] - playerCarMoving.getWidth() && pathStartY <= carPosition[1] + playerCarMoving.getWidth())) {
-            drawnPath.reset();
-            Log.d(TAG, "checkPathStart: path reset");
-            currentDraw = true;
+    public void checkPathStartAndEnd() {
+        if(!(pathStartX >= carPosition[0] - playerCarMoving.getWidth() && pathStartX <= carPosition[0] + playerCarMoving.getWidth() && pathStartY >= carPosition[1] - playerCarMoving.getWidth() && pathStartY <= carPosition[1] + playerCarMoving.getWidth() && pathEndX >= 60 && pathEndX <= (60 + parkSpot.getWidth()) && pathEndY >= 60 && pathEndY <= (60 + parkSpot.getHeight()))) {
+                drawnPath.reset();
+                Log.d(TAG, "checkPathStart: path reset");
+                currentDraw = true;
         }
         else {
             Log.d(TAG, "checkPathStart: else cond");
@@ -264,7 +268,6 @@ public class GameView extends View {
     public class Coin {
         private float left;
         private float top;
-        private boolean collected;
 
         public Coin(float left, float top) {
             this.left = left;
