@@ -46,6 +46,7 @@ public class GameView extends View {
     private boolean carMoving;
     private boolean finishedDrawingPath;
     private boolean initialDraw;
+    private boolean currentDraw;
     private boolean coinsAndSpikeObjectsCreated;
 
     public GameView(Context context, GameViewInterface listener) {
@@ -90,8 +91,11 @@ public class GameView extends View {
 
         coinsCollected = 0;
 
+        currentStepNo = 0;
+
         carMoving = false;
         initialDraw = true;
+        currentDraw = false;
         finishedDrawingPath = false;
         coinsAndSpikeObjectsCreated = false;
 
@@ -108,7 +112,7 @@ public class GameView extends View {
         Log.d(TAG, "onDraw: finishedDrawingPath: " + finishedDrawingPath);
         if(finishedDrawingPath) {
 
-            if (currentStepNo < 120) {
+            if (currentStepNo < 120 && !currentDraw) {
 
                 Log.d(TAG, "onDraw: finished path and step < 120");
                 
@@ -132,7 +136,12 @@ public class GameView extends View {
 
                 invalidate();
 
-            } else {
+                if(currentStepNo == 120) {
+                    currentDraw = true;
+                }
+
+            }
+            else if(currentDraw) {
                 currentSetUp(canvas);
                 Log.d(TAG, "onDraw: finished path and step !< 120");
                 currentStepNo = 0;
@@ -220,24 +229,21 @@ public class GameView extends View {
                     pathStartX = pointX;
                     pathStartY = pointY;
                     //Log.d(TAG, "onTouchEvent: action down");
-                    postInvalidate();
                     return true;
                 case MotionEvent.ACTION_MOVE:
                     drawnPath.lineTo(pointX, pointY);
                     //Log.d(TAG, "onTouchEvent: actionmove");
-                    postInvalidate();
                     break;
                 case MotionEvent.ACTION_UP:
                     checkPathStart();
                     //Log.d(TAG, "onTouchEvent: actionup");
-                    postInvalidate();
                     break;
                 default:
                     return false;
             }
         }
 
-        //postInvalidate();
+        postInvalidate();
         return false;
     }
 
@@ -245,12 +251,13 @@ public class GameView extends View {
         if(!(pathStartX >= carPosition[0] - playerCarMoving.getWidth() && pathStartX <= carPosition[0] + playerCarMoving.getWidth() && pathStartY >= carPosition[1] - playerCarMoving.getWidth() && pathStartY <= carPosition[1] + playerCarMoving.getWidth())) {
             drawnPath.reset();
             Log.d(TAG, "checkPathStart: path reset");
-            currentStepNo = 120;
+            currentDraw = true;
         }
         else {
             Log.d(TAG, "checkPathStart: else cond");
             finishedDrawingPath = true;
             initialDraw = false;
+            currentDraw = false;
         }
     }
 
@@ -298,8 +305,8 @@ public class GameView extends View {
 
         for (Spike s : spikes) {
             if (carLeft >= s.getLeft() && carLeft <= s.getLeft() + spikeBitmap.getWidth() && carTop >= s.getTop() && carTop <= s.getTop() + spikeBitmap.getHeight()) {
-                currentStepNo = 120;
                 gameViewInterface.gameLost();
+                currentDraw = true;
             }
             canvas.drawBitmap(spikeBitmap, s.getLeft(), s.getTop(), null);
         }
@@ -328,7 +335,7 @@ public class GameView extends View {
         float carTop = matrixValues[5];
 
         if(carLeft >= 60 && carLeft + playerCarMoving.getWidth()/2 <= 60 + parkSpot.getWidth() && carTop >= 60 && carTop + playerCarMoving.getHeight()/2 <= 60 + parkSpot.getHeight()) {
-            currentStepNo = 120;
+            currentDraw = true;
             gameViewInterface.gameWon();
         }
     }
