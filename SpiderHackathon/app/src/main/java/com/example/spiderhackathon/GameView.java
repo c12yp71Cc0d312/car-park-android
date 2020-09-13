@@ -30,21 +30,27 @@ public class GameView extends View {
     private double canvasHeight;
     private Paint drawPaint;
     private Path drawnPath;
-    private float carStartPosLeft;
-    private float carStartPosTop;
     private int currentStepNo;
     private PathMeasure pathMeasure;
     private Matrix matrix;
-    private boolean pathFinished;
-    private static boolean initialDraw = true;
     private ArrayList<Coin> coins;
     private ArrayList<Spike> spikes;
     private int coinsCollected;
+    private float pathStartX, pathStartY;
 
     private float[] matrixValues;
+    private float[] carPosition;
 
-    public GameView(Context context) {
+    private GameViewInterface gameViewInterface;
+
+    private boolean carMoving;
+    private boolean finishedDrawingPath;
+    private boolean initialDraw;
+    private boolean coinsAndSpikeObjectsCreated;
+
+    public GameView(Context context, GameViewInterface listener) {
         super(context);
+        this.gameViewInterface = listener;
         initializations();
     }
 
@@ -74,14 +80,21 @@ public class GameView extends View {
         drawnPath = new Path();
 
         coins = new ArrayList<>();
-        coins.add(new Coin(400, 400));
-
+        //coins.add(new Coin(400, 400));
         spikes = new ArrayList<>();
-        spikes.add(new Spike(600, 400));
+        //spikes.add(new Spike(600, 400));
 
         matrixValues = new float[9];
 
+        carPosition = new float[2];
+
         coinsCollected = 0;
+
+        carMoving = false;
+        initialDraw = true;
+        finishedDrawingPath = false;
+        coinsAndSpikeObjectsCreated = false;
+
     }
 
     @Override
@@ -91,82 +104,160 @@ public class GameView extends View {
         canvasWidth = canvas.getWidth();
         canvasHeight = canvas.getHeight();
 
-        int carHeight = playerCar.getHeight();
-        int carWidth = playerCar.getWidth();
+        Log.d(TAG, "onDraw: entered");
+        Log.d(TAG, "onDraw: finishedDrawingPath: " + finishedDrawingPath);
+        if(finishedDrawingPath) {
 
-        carStartPosLeft = (float) (canvasWidth - carWidth - 60);
-        carStartPosTop = (float) (canvasHeight - carHeight - 60);
+            if (currentStepNo < 120) {
 
-        if(pathFinished) {
-            matrix = new Matrix();
-            pathMeasure = new PathMeasure(drawnPath, false);
-            float segmentLength = pathMeasure.getLength() / 30;
+                Log.d(TAG, "onDraw: finished path and step < 120");
+                
+                matrix = new Matrix();
+                pathMeasure = new PathMeasure(drawnPath, false);
+                float segmentLength = pathMeasure.getLength() / 120;
 
-            if (currentStepNo <= 120) {
+                carMoving = true;
+                Log.d(TAG, "onDraw: step: " + currentStepNo);
+
                 pathMeasure.getMatrix(segmentLength * currentStepNo, matrix, pathMeasure.POSITION_MATRIX_FLAG + pathMeasure.TANGENT_MATRIX_FLAG);
                 canvas.drawBitmap(parkSpot, 60, 60, null);
                 canvas.drawPath(drawnPath, drawPaint);
                 canvas.drawBitmap(playerCarMoving, matrix, null);
                 matrix.getValues(matrixValues);
-                //Log.d(TAG, "onDraw:\nmatrix[0]: " + matrixValues[0] + "\nmatrix[1]: " + matrixValues[1] + "\nmatrix[2]: " + matrixValues[2] + "\nmatrix[3]: " + matrixValues[3] + "\nmatrix[4]: " + matrixValues[4] + "\nmatrix[5]: " + matrixValues[5] + "\nmatrix[6]: " + matrixValues[6] + "\nmatrix[7]: " + matrixValues[7] + "\nmatrix[8]: " + matrixValues[8]);
+
                 checkAndDrawSpikesCoins(canvas);
-                Log.d(TAG, "onDraw: carX: " + matrixValues[2] + " carY: " + matrixValues[5]);
-                Log.d(TAG, "onDraw: coinX: " + coins.get(0).getLeft());
+                checkFinish();
+
                 currentStepNo++;
-                Log.d(TAG, "onDraw: step: " + currentStepNo);
-                if(currentStepNo < 120) {
-                    invalidate();
-                }
-                //Log.d(TAG, "onDraw: collected: " + coins.get(0).isCollected());
+
+                invalidate();
+
             } else {
+                currentSetUp(canvas);
+                Log.d(TAG, "onDraw: finished path and step !< 120");
                 currentStepNo = 0;
-                Log.d(TAG, "onDraw: step: " + currentStepNo);
                 drawnPath.reset();
+                finishedDrawingPath = false;
+                carMoving = false;
             }
         }
 
         else if(initialDraw) {
-            canvas.drawBitmap(parkSpot, 60, 60, null);
-            canvas.drawPath(drawnPath, drawPaint);
-            canvas.drawBitmap(playerCar, carStartPosLeft, carStartPosTop, null);
-            for(Coin c : coins) {
-                canvas.drawBitmap(coinBitmap, c.getLeft(), c.getTop(), null);
-            }
-            for(Spike s : spikes) {
-                canvas.drawBitmap(spikeBitmap, s.getLeft(), s.getTop(), null);
-            }
+            initialSetUp(canvas);
+            Log.d(TAG, "onDraw: initialdraw");
         }
-        //Log.d(TAG, "onDraw: initialDraw: " + initialDraw);
 
+        else {
+            currentSetUp(canvas);
+        }
+
+    }
+
+    public void initialSetUp(Canvas canvas) {
+
+        if(!coinsAndSpikeObjectsCreated) {
+            coins.add(new Coin((float) (canvasWidth * 0.1), (float) (canvasHeight / 2)));
+            coins.add(new Coin((float) (canvasWidth / 2), (float) (canvasHeight * 0.85)));
+            coins.add(new Coin((float) (canvasWidth * 0.75), (float) (canvasHeight * 0.2)));
+
+            spikes.add(new Spike((float) (canvasWidth * 0.35), (float) (canvasHeight * 0.7)));
+            spikes.add(new Spike((float) (canvasWidth * 0.55), (float) (canvasHeight * 0.3)));
+            spikes.add(new Spike((float) (canvasWidth * 0.65), (float) (canvasHeight * 0.45)));
+
+            coinsAndSpikeObjectsCreated = true;
+        }
+
+        int carHeight = playerCar.getHeight();
+        int carWidth = playerCar.getWidth();
+
+        float carStartPosLeft = (float) (canvasWidth - carWidth - 60);
+        float carStartPosTop = (float) (canvasHeight - carHeight - 60);
+
+        canvas.drawBitmap(parkSpot, 60, 60, null);
+        canvas.drawPath(drawnPath, drawPaint);
+        canvas.drawBitmap(playerCar, carStartPosLeft, carStartPosTop, null);
+
+        for(Coin c : coins) {
+            canvas.drawBitmap(coinBitmap, c.getLeft(), c.getTop(), null);
+        }
+        for(Spike s : spikes) {
+            canvas.drawBitmap(spikeBitmap, s.getLeft(), s.getTop(), null);
+        }
+
+        carPosition[0] = carStartPosLeft;
+        carPosition[1] = carStartPosTop;
+
+        gameViewInterface.getCoins(coinsCollected);
+
+    }
+
+    public void currentSetUp(Canvas canvas) {
+        matrix.getValues(matrixValues);
+        //Log.d(TAG, "onDraw: mat x: " + matrixValues[2] + " maty: " + matrixValues[5]);
+        canvas.drawBitmap(parkSpot, 60, 60, null);
+        canvas.drawPath(drawnPath, drawPaint);
+        canvas.drawBitmap(playerCarMoving, matrix, null);
+        checkAndDrawSpikesCoins(canvas);
+
+        carPosition[0] = matrixValues[2];
+        carPosition[1] = matrixValues[5];
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         float pointX = event.getX();
         float pointY = event.getY();
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN :
-                drawnPath.moveTo(pointX, pointY);
-                return true;
-            case MotionEvent.ACTION_MOVE:
-                drawnPath.lineTo(pointX, pointY);
-                break;
-            case MotionEvent.ACTION_UP:
-                pathFinished = true;
-                initialDraw = false;
-                break;
-            default:
-                return false;
+
+        //pathStartX;
+
+        Log.d(TAG, "onTouchEvent: carmoving: " + carMoving);
+        Log.d(TAG, "onTouchEvent: stepcount: "+ currentStepNo );
+
+        if(!carMoving) {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    drawnPath.moveTo(pointX, pointY);
+                    pathStartX = pointX;
+                    pathStartY = pointY;
+                    //Log.d(TAG, "onTouchEvent: action down");
+                    postInvalidate();
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    drawnPath.lineTo(pointX, pointY);
+                    //Log.d(TAG, "onTouchEvent: actionmove");
+                    postInvalidate();
+                    break;
+                case MotionEvent.ACTION_UP:
+                    checkPathStart();
+                    //Log.d(TAG, "onTouchEvent: actionup");
+                    postInvalidate();
+                    break;
+                default:
+                    return false;
+            }
         }
 
-        postInvalidate();
+        //postInvalidate();
         return false;
+    }
+
+    public void checkPathStart() {
+        if(!(pathStartX >= carPosition[0] - playerCarMoving.getWidth() && pathStartX <= carPosition[0] + playerCarMoving.getWidth() && pathStartY >= carPosition[1] - playerCarMoving.getWidth() && pathStartY <= carPosition[1] + playerCarMoving.getWidth())) {
+            drawnPath.reset();
+            Log.d(TAG, "checkPathStart: path reset");
+            currentStepNo = 120;
+        }
+        else {
+            Log.d(TAG, "checkPathStart: else cond");
+            finishedDrawingPath = true;
+            initialDraw = false;
+        }
     }
 
     public class Coin {
         private float left;
         private float top;
-        private boolean collected = false;
+        private boolean collected;
 
         public Coin(float left, float top) {
             this.left = left;
@@ -181,13 +272,6 @@ public class GameView extends View {
             return top;
         }
 
-        public boolean isCollected() {
-            return collected;
-        }
-
-        public void setCollected(boolean collected) {
-            this.collected = collected;
-        }
     }
 
     public class Spike {
@@ -209,22 +293,56 @@ public class GameView extends View {
     }
 
     public void checkAndDrawSpikesCoins(Canvas canvas) {
+        float carLeft = matrixValues[2];
+        float carTop = matrixValues[5];
+
         for (Spike s : spikes) {
-            if (matrixValues[2] >= s.getLeft() && matrixValues[2] <= s.getLeft() + spikeBitmap.getWidth() && matrixValues[5] >= s.getTop() && matrixValues[5] <= s.getTop() + spikeBitmap.getHeight()) {
+            if (carLeft >= s.getLeft() && carLeft <= s.getLeft() + spikeBitmap.getWidth() && carTop >= s.getTop() && carTop <= s.getTop() + spikeBitmap.getHeight()) {
                 currentStepNo = 120;
+                gameViewInterface.gameLost();
             }
             canvas.drawBitmap(spikeBitmap, s.getLeft(), s.getTop(), null);
         }
 
-        for(Coin c : coins) {
-            if (matrixValues[2] >= c.getLeft() && matrixValues[2] <= c.getLeft() + coinBitmap.getWidth() && matrixValues[5] >= c.getTop() && matrixValues[5] <= c.getTop() + coinBitmap.getHeight()) {
-                c.setCollected(true);
-                coinsCollected++;
-            }
-            if (!c.isCollected()) {
-                canvas.drawBitmap(coinBitmap, c.getLeft(), c.getTop(), null);
-            }
+        for (Coin c : coins) {
+            boolean collected = false;
+                Log.d(TAG, "checkAndDrawSpikesCoins: coin collected is false");
+                if (carLeft >= c.getLeft() && carLeft <= c.getLeft() + coinBitmap.getWidth() && carTop >= c.getTop() && carTop <= c.getTop() + coinBitmap.getHeight()) {
+                    coins.remove(c);
+                    collected = true;
+                    Log.d(TAG, "checkAndDrawSpikesCoins: coin had been collected");
+                    coinsCollected++;
+                    gameViewInterface.getCoins(coinsCollected);
+                    break;
+                }
         }
+        Log.d(TAG, "checkAndDrawSpikesCoins: size: " + coins.size());
+        for(Coin c : coins) {
+                canvas.drawBitmap(coinBitmap, c.getLeft(), c.getTop(), null);
+                Log.d(TAG, "checkAndDrawSpikesCoins: coin drawn");
+        }
+    }
+
+    public void checkFinish() {
+        float carLeft = matrixValues[2];
+        float carTop = matrixValues[5];
+
+        if(carLeft >= 60 && carLeft + playerCarMoving.getWidth()/2 <= 60 + parkSpot.getWidth() && carTop >= 60 && carTop + playerCarMoving.getHeight()/2 <= 60 + parkSpot.getHeight()) {
+            currentStepNo = 120;
+            gameViewInterface.gameWon();
+        }
+    }
+
+    public interface GameViewInterface {
+        void getCoins(int c);
+        void gameWon();
+        void gameLost();
+    }
+
+    public void resetGame() {
+        initializations();
+        postInvalidate();
+        gameViewInterface.getCoins(coinsCollected);
     }
 
 }
